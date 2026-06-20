@@ -438,7 +438,8 @@
     sharedDocRef.set({
       pins: store.pins,
       payStatus: store.payStatus,
-      testMode: !!store.testMode
+      testMode: !!store.testMode,
+      profilePics: store.profilePics
     }, { merge: true }).catch(err => console.error('Firestore 寫入失敗', err));
   }
 
@@ -449,18 +450,23 @@
     const data = snap.exists ? snap.data() : {};
     const remotePins = data.pins || {};
     const remotePayStatus = data.payStatus || {};
+    const remoteProfilePics = data.profilePics || {};
     const mergedPins = { ...store.pins, ...remotePins };
     const mergedPayStatus = { ...store.payStatus, ...remotePayStatus };
+    const mergedProfilePics = { ...store.profilePics, ...remoteProfilePics };
     const needUpload = !firstSnapshotReceived && (
       Object.keys(mergedPins).length !== Object.keys(remotePins).length ||
-      Object.keys(mergedPayStatus).length !== Object.keys(remotePayStatus).length
+      Object.keys(mergedPayStatus).length !== Object.keys(remotePayStatus).length ||
+      Object.keys(mergedProfilePics).length !== Object.keys(remoteProfilePics).length
     );
     store.pins = mergedPins;
     store.payStatus = mergedPayStatus;
+    store.profilePics = mergedProfilePics;
     store.testMode = !!data.testMode;
     saveStore(store);
     if (needUpload) pushSharedState();
     firstSnapshotReceived = true;
+    if (typeof applyProfilePics === 'function') applyProfilePics();
     if (typeof updateTestModeBtnLabel === 'function') updateTestModeBtnLabel();
     if (currentPerson && typeof renderDebtList === 'function') renderDebtList();
   }, err => console.error('Firestore 讀取失敗', err));
@@ -777,6 +783,7 @@
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     store.profilePics[cropTargetPerson] = dataUrl;
     saveStore(store);
+    pushSharedState();
     applyProfilePics();
     cropOverlay.classList.add('hidden');
   });
