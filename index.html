@@ -175,6 +175,15 @@
   .lightbox img { max-width: 90%; max-height: 85%; border-radius: 12px; }
   .lightbox .close-x { position: absolute; top: 20px; right: 28px; color: #fff; font-size: 2em; cursor: pointer; }
 
+  .modal-close-x { position: absolute; top: 10px; right: 16px; font-size: 1.6em; color: #999; cursor: pointer; line-height: 1; }
+  .modal-close-x:hover { color: #333; }
+
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 6px 2px rgba(255,206,0,0.5); }
+    50% { box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 22px 8px rgba(255,206,0,0.95); }
+  }
+  .glow-btn { animation: glowPulse 1.6s ease-in-out infinite; }
+
   /* ---------- 設定面板 ---------- */
   .settings-panel { background: #fff; max-width: 380px; }
   .settings-panel h2 { margin-top: 0; color: #333; }
@@ -217,7 +226,8 @@
 
 <!-- 設定 PIN 彈窗 -->
 <div class="overlay hidden" id="setPinOverlay">
-  <div class="modal">
+  <div class="modal" style="position:relative;">
+    <span class="modal-close-x" id="setPinCloseBtn">&times;</span>
     <h1>設定你嘅 PIN 碼</h1>
     <p>請設定 4 位數字 PIN，下次進入要用嚕。</p>
     <input type="password" class="pin-input" id="setPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
@@ -228,7 +238,8 @@
 
 <!-- 輸入 PIN 彈窗 -->
 <div class="overlay hidden" id="checkPinOverlay">
-  <div class="modal">
+  <div class="modal" style="position:relative;">
+    <span class="modal-close-x" id="checkPinCloseBtn">&times;</span>
     <h1>請輸入 PIN 碼</h1>
     <p>（製作者可輸入萬能密碼直接進入）</p>
     <input type="password" class="pin-input" id="checkPinInput" maxlength="20" inputmode="numeric" placeholder="••••">
@@ -309,7 +320,7 @@
 <div class="screen" id="detailScreen">
   <div class="detail-topbar">
     <button class="back-btn" id="backBtn">← 返回選擇身分</button>
-    <button class="back-btn" id="goPaymentBtn">💳 收款資訊</button>
+    <button class="back-btn glow-btn" id="goPaymentBtn">💳 收款資訊</button>
   </div>
   <div class="title" id="detailTitle">欠款明細</div>
   <div class="total-box" id="totalBox">總欠款金額：<span id="totalAmount"></span></div>
@@ -368,23 +379,24 @@
 <script>
   const MASTER_PASSWORD = "1029384756";
   const THEME_COLORS = ["#e2415a","#ee7148","#f8a557","#fcd980","#e2f59a","#aee29b","#5fc4a0","#3a86c8"];
-  const EVIDENCE_PLACEHOLDER = "QRcode/Alipay.jpg";
+  // 證明圖路徑規則：付款證明/{id}.jpg（請把對應檔案放進「付款證明」資料夾）
+  function evidencePath(id) { return `付款證明/${id}.jpg`; }
 
   // ====== 欠款資料（假資料，之後請自行修改成真實內容） ======
   const debtData = {
     "媽": [
-      { id:"mom1", date: "2026-01-15", category: "代墊消費", item: "幫忙買的化妝品", amount: 350, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
-      { id:"mom2", date: "2026-03-02", category: "承諾未付", item: "說好的飯錢沒給", amount: 120, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
-      { id:"mom3", date: "2026-05-20", category: "借款", item: "急用借的現金", amount: 1000, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+      { id:"mom4", date: "2026-06-18", category: "養女基金", item: "M記", amount: 54, evidence: evidencePath("mom4"), status: "unpaid" },
+      { id:"mom3", date: "2026-06-18", category: "養女基金", item: "瑞幸", amount: 68.52, evidence: evidencePath("mom3"), status: "unpaid" },
+      { id:"mom2", date: "2026-06-16", category: "養女基金", item: "瑞幸", amount: 45.12, evidence: evidencePath("mom2"), status: "unpaid" },
+      { id:"mom1", date: "2026-06-15", category: "養女基金", item: "瑞幸", amount: 22.9, evidence: evidencePath("mom1"), status: "unpaid" },
     ],
     "爸": [
-      { id:"dad1", date: "2026-02-10", category: "代墊消費", item: "幫忙繳的水電費", amount: 800, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
-      { id:"dad2", date: "2026-04-05", category: "借款", item: "修車借的錢", amount: 1500, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+      { id:"dad3", date: "2026-06-18", category: "代墊消費", item: "嫲嫲taxi", amount: 240, evidence: evidencePath("cash"), status: "unpaid" },
+      { id:"dad2", date: "2026-06-15", category: "代墊消費", item: "VPN", amount: 175, evidence: evidencePath("dad2"), status: "unpaid" },
+      { id:"dad1", date: "2026-06-13", category: "代墊消費", item: "生日蛋糕", amount: 121, evidence: evidencePath("dad1"), status: "unpaid" },
     ],
     "妹": [
-      { id:"sis1", date: "2026-01-28", category: "承諾未付", item: "說好的生日禮物錢", amount: 250, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
-      { id:"sis2", date: "2026-03-18", category: "代墊消費", item: "幫忙買的網購商品", amount: 480, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
-      { id:"sis3", date: "2026-06-01", category: "借款", item: "繳學費借的錢", amount: 2000, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+      { id:"sis1", date: "2026-06-17", category: "借款", item: "樂譜", amount: 38.26, evidence: evidencePath("sis1"), status: "unpaid" }
     ]
   };
 
@@ -515,6 +527,7 @@
     setPinOverlay.classList.remove('hidden');
     setPinOverlay.dataset.person = person;
   }
+  document.getElementById('setPinCloseBtn').addEventListener('click', () => setPinOverlay.classList.add('hidden'));
   setPinConfirmBtn.addEventListener('click', () => {
     const val = setPinInput.value.trim();
     if (!/^\d{4}$/.test(val)) {
@@ -536,6 +549,7 @@
     checkPinOverlay.dataset.person = person;
   }
   checkPinCancelBtn.addEventListener('click', () => checkPinOverlay.classList.add('hidden'));
+  document.getElementById('checkPinCloseBtn').addEventListener('click', () => checkPinOverlay.classList.add('hidden'));
   checkPinConfirmBtn.addEventListener('click', () => {
     const val = checkPinInput.value.trim();
     const person = checkPinOverlay.dataset.person;
