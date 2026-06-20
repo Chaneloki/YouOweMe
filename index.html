@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你欠我錢！</title>
+<style>
+  :root {
+    --c1:#e2415a; --c2:#ee7148; --c3:#f8a557; --c4:#fcd980;
+    --c5:#e2f59a; --c6:#aee29b; --c7:#5fc4a0; --c8:#3a86c8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+    background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c6), var(--c7), var(--c8));
+    background-size: 400% 400%;
+    animation: bgmove 18s ease infinite;
+    color: #2b2b2b;
+    min-height: 100vh;
+  }
+  @keyframes bgmove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ---------- 頂部工具列 ---------- */
+  .topbar {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 500;
+  }
+  .icon-btn {
+    background: rgba(255,255,255,0.85);
+    border: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    font-size: 1.4em;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  }
+
+  /* ---------- 彈出視窗（共用） ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 16px;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    background: #fff;
+    color: #d8000c;
+    padding: 36px 28px;
+    border-radius: 22px;
+    text-align: center;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 0 60px rgba(216,0,12,0.7);
+  }
+  .modal.entrance { animation: shake 0.6s ease-in-out infinite alternate, popin 0.4s ease-out; }
+  @keyframes popin { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes shake { from { transform: rotate(-1.5deg); } to { transform: rotate(1.5deg); } }
+  .modal h1 { font-size: 2em; margin: 0 0 10px; letter-spacing: 1px; }
+  .modal p { font-size: 1.05em; margin-bottom: 22px; color: #444; }
+  .btn {
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    color: #fff;
+    border: none;
+    padding: 13px 28px;
+    font-size: 1.05em;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  }
+  .btn:hover { transform: scale(1.07); box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
+  .btn.secondary { background: #888; }
+  .btn.small { padding: 8px 18px; font-size: 0.9em; }
+  .pin-input {
+    width: 160px;
+    font-size: 1.5em;
+    text-align: center;
+    letter-spacing: 8px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+    margin-bottom: 16px;
+  }
+  .modal-error { color: #d8000c; font-size: 0.9em; min-height: 1.2em; margin: -8px 0 10px; }
+
+  /* ---------- 選擇身分 ---------- */
+  .screen { display: none; padding: 70px 20px 40px; max-width: 900px; margin: 0 auto; }
+  .screen.active { display: block; }
+  .title { text-align: center; font-size: 2em; margin-bottom: 30px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+  body.show-select-bg {
+    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('大頭照/USD.jpg') center/cover no-repeat fixed;
+    animation: none;
+  }
+
+  .person-grid { display: flex; justify-content: center; gap: 26px; flex-wrap: wrap; }
+  .person-card {
+    width: 170px; height: 210px; border-radius: 18px; border: 4px solid #fff;
+    background: #fff center/cover no-repeat; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; cursor: pointer; overflow: hidden;
+    transition: transform 0.25s; position: relative; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  }
+  .person-card:hover { transform: translateY(-8px) scale(1.04); }
+  .person-card .label { background: rgba(0,0,0,0.55); width: 100%; text-align: center; padding: 12px 0; font-size: 1.3em; font-weight: bold; color: #fff; }
+  .person-card .placeholder-icon { font-size: 4em; margin-top: 26px; }
+
+  /* ---------- 明細頁 ---------- */
+  .back-btn { background: rgba(255,255,255,0.8); border: none; color: #333; padding: 9px 20px; border-radius: 20px; cursor: pointer; margin-bottom: 18px; font-weight: bold; }
+  .detail-topbar { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .total-box { text-align: center; padding: 20px; border-radius: 16px; margin-bottom: 25px; font-size: 1.3em; box-shadow: 0 4px 18px rgba(0,0,0,0.25); color: #fff; }
+  .total-box span { font-size: 1.6em; font-weight: bold; }
+
+  .debt-card {
+    background: rgba(255,255,255,0.92); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px;
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap; transition: opacity 0.3s;
+  }
+  .debt-card.pending { opacity: 0.45; position: relative; }
+  .debt-card.pending::after {
+    content: "🔒 待確認"; position: absolute; top: 8px; right: 12px; font-size: 0.85em; font-weight: bold; color: #d8000c;
+  }
+  .debt-card.paid { opacity: 0.55; }
+  .debt-card.paid::after { content: "✅ 已還款"; position: absolute; top: 8px; right: 12px; font-size: 0.85em; font-weight: bold; color: #2e8b57; }
+  .debt-card img.evidence { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; border: 2px solid #ddd; flex-shrink: 0; cursor: pointer; }
+  .debt-info { flex: 1; min-width: 180px; }
+  .debt-info .row1 { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 6px; flex-wrap: wrap; }
+  .category-tag { display: inline-block; background: var(--c4); color: #2b2b2b; font-size: 0.8em; padding: 2px 10px; border-radius: 10px; margin-bottom: 6px; }
+  .debt-info .amount { color: #d8000c; font-size: 1.2em; font-weight: bold; }
+  .debt-info .date { color: #777; font-size: 0.85em; }
+  .pay-btn { margin-top: 6px; }
+
+  .total-actions { text-align: center; margin-bottom: 25px; }
+  .profile-actions { text-align: center; margin-bottom: 20px; }
+
+  /* ---------- 裁切工具 ---------- */
+  .crop-stage {
+    position: relative;
+    width: 200px;
+    height: 247px;
+    margin: 0 auto 14px;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 3px solid var(--c7);
+    background: #000;
+    touch-action: none;
+  }
+  .crop-stage img { position: absolute; top: 0; left: 0; max-width: none; user-select: none; cursor: grab; }
+  .crop-hint { text-align: center; color: #555; font-size: 0.85em; margin-bottom: 10px; }
+
+  /* ---------- 收款資訊 ---------- */
+  .pay-section { margin-top: 30px; background: rgba(255,255,255,0.92); border-radius: 16px; padding: 25px; text-align: center; }
+  .pay-section h2 { margin-top: 0; color: #333; }
+  .qr-group { display: flex; justify-content: center; gap: 26px; flex-wrap: wrap; margin: 20px 0; }
+  .qr-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .qr-item img { width: 150px; height: 150px; object-fit: cover; border-radius: 12px; border: 3px solid var(--c7); background: #fff; cursor: zoom-in; }
+  .qr-item p { margin: 0; font-weight: bold; color: #333; }
+  .contact-info { margin-top: 15px; font-size: 1.05em; line-height: 1.8; color: #333; }
+  .contact-info b { color: #d8000c; }
+
+  /* ---------- 燈箱 ---------- */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1100; }
+  .lightbox img { max-width: 90%; max-height: 85%; border-radius: 12px; }
+  .lightbox .close-x { position: absolute; top: 20px; right: 28px; color: #fff; font-size: 2em; cursor: pointer; }
+
+  /* ---------- 設定面板 ---------- */
+  .settings-panel { background: #fff; max-width: 380px; }
+  .settings-panel h2 { margin-top: 0; color: #333; }
+  .color-row { display: flex; justify-content: center; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+  .color-dot { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; }
+  .color-dot.selected { border-color: #333; }
+  .vol-row { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+  .vol-row label { width: 90px; text-align: right; font-size: 0.9em; color: #555; }
+  .vol-row input[type=range] { flex: 1; }
+</style>
+</head>
+<body>
+
+<audio id="popupSound" src="SE/popup.mp3" preload="auto"></audio>
+<audio id="bgm" src="bgm/goofy.mp3" preload="auto" loop></audio>
+
+<div class="topbar">
+  <button class="icon-btn" id="settingsBtn" title="環境設定">⚙</button>
+</div>
+
+<!-- 第一層：警告彈窗 -->
+<div class="overlay" id="overlay">
+  <div class="modal entrance">
+    <h1>你要比我錢！！</h1>
+    <p>依家係時候要面對現實啦，撳下面個掣睇詳情。</p>
+    <button class="btn" id="watchDetailBtn">睇詳情</button>
+  </div>
+</div>
+
+<!-- 是否本人彈窗 -->
+<div class="overlay hidden" id="identityOverlay">
+  <div class="modal">
+    <h1 id="identityTitle">係咪本人？</h1>
+    <p id="identitySub"></p>
+    <button class="btn" id="identityYesBtn">係，本人</button>
+    <button class="btn secondary" id="identityNoBtn">唔係，返去</button>
+    <div class="modal-error" id="identityMasterHint"></div>
+  </div>
+</div>
+
+<!-- 設定 PIN 彈窗 -->
+<div class="overlay hidden" id="setPinOverlay">
+  <div class="modal">
+    <h1>設定你嘅 PIN 碼</h1>
+    <p>請設定 4 位數字 PIN，下次進入要用嚕。</p>
+    <input type="password" class="pin-input" id="setPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
+    <div class="modal-error" id="setPinError"></div>
+    <button class="btn" id="setPinConfirmBtn">確認設定</button>
+  </div>
+</div>
+
+<!-- 輸入 PIN 彈窗 -->
+<div class="overlay hidden" id="checkPinOverlay">
+  <div class="modal">
+    <h1>請輸入 PIN 碼</h1>
+    <p>（製作者可輸入萬能密碼直接進入）</p>
+    <input type="password" class="pin-input" id="checkPinInput" maxlength="20" inputmode="numeric" placeholder="••••">
+    <div class="modal-error" id="checkPinError"></div>
+    <button class="btn" id="checkPinConfirmBtn">確認</button>
+    <button class="btn secondary" id="checkPinCancelBtn">取消</button>
+  </div>
+</div>
+
+<!-- 付款待確認彈窗 -->
+<div class="overlay hidden" id="waitOverlay">
+  <div class="modal">
+    <h1>請等待確認</h1>
+    <p>你嘅還款記錄已提交，等緊製作者確認，確認前資料會變半透明同顯示鎖頭。</p>
+    <button class="btn" id="waitOkBtn">知道喇</button>
+  </div>
+</div>
+
+<!-- 萬能密碼驗證（用於確認付款） -->
+<div class="overlay hidden" id="masterOverlay">
+  <div class="modal">
+    <h1>製作者驗證</h1>
+    <p>請輸入萬能密碼以確認還款</p>
+    <input type="password" class="pin-input" id="masterInput" maxlength="20" inputmode="numeric" placeholder="••••">
+    <div class="modal-error" id="masterError"></div>
+    <button class="btn" id="masterConfirmBtn">確認收款</button>
+    <button class="btn secondary" id="masterCancelBtn">取消</button>
+  </div>
+</div>
+
+<!-- 燈箱 -->
+<div class="lightbox" id="lightbox" style="display:none;">
+  <span class="close-x" id="lightboxClose">&times;</span>
+  <img id="lightboxImg" src="" alt="放大圖">
+</div>
+
+<!-- 環境設定面板 -->
+<div class="overlay hidden" id="settingsOverlay">
+  <div class="modal settings-panel">
+    <h2>⚙ 環境設定</h2>
+    <p style="text-align:center;color:#555;">主題色（目前身分：<span id="settingsPersonLabel">未選擇</span>）</p>
+    <div class="color-row" id="colorRow"></div>
+    <div class="vol-row">
+      <label>背景音樂</label>
+      <input type="range" id="bgmVolume" min="0" max="100" value="50">
+    </div>
+    <div class="vol-row">
+      <label>音效</label>
+      <input type="range" id="sfxVolume" min="0" max="100" value="80">
+    </div>
+    <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+    <p style="text-align:center;color:#555;margin:0 0 10px;">製作者專用（需萬能密碼）</p>
+    <button class="btn small" id="testModeBtn">🧪 開啟測試模式（免PIN）</button><br>
+    <button class="btn small secondary" id="verifyAllBtn">✅ 全部確認收款（一鍵）</button><br>
+    <button class="btn small secondary" id="resetPinBtn">🔄 重設所有 PIN</button>
+    <button class="btn small secondary" id="resetPayBtn">🔄 重設所有付款狀態</button>
+    <button class="btn" id="settingsCloseBtn">關閉</button>
+  </div>
+</div>
+
+<!-- 選擇身分 -->
+<div class="screen" id="selectScreen">
+  <div class="title">請選擇你的身分</div>
+  <div class="person-grid">
+    <div class="person-card" data-person="媽" style="background-image:url('大頭照/mam.jpg')">
+      <div class="label">媽</div>
+    </div>
+    <div class="person-card" data-person="爸" style="background-image:url('大頭照/dad.jpg')">
+      <div class="label">爸</div>
+    </div>
+    <div class="person-card" data-person="妹" style="background-image:url('大頭照/sis.jpg')">
+      <div class="label">妹</div>
+    </div>
+  </div>
+</div>
+
+<!-- 明細頁 -->
+<div class="screen" id="detailScreen">
+  <div class="detail-topbar">
+    <button class="back-btn" id="backBtn">← 返回選擇身分</button>
+    <button class="back-btn" id="goPaymentBtn">💳 收款資訊</button>
+  </div>
+  <div class="title" id="detailTitle">欠款明細</div>
+  <div class="total-box" id="totalBox">總欠款金額：<span id="totalAmount"></span></div>
+  <div class="profile-actions">
+    <button class="btn small" id="changeIconBtn">📷 更換我的大頭照</button>
+    <button class="btn small" id="changeBgBtn">🖼 更換頁面背景圖</button>
+    <button class="btn small secondary" id="removeBgBtn">🗑 移除背景圖</button>
+  </div>
+  <div class="total-actions">
+    <button class="btn" id="payAllBtn">✅ 全部已付款</button>
+  </div>
+  <div id="debtList"></div>
+</div>
+
+<input type="file" id="iconFileInput" accept="image/*" style="display:none">
+<input type="file" id="bgFileInput" accept="image/*" style="display:none">
+
+<!-- 裁切大頭照 -->
+<div class="overlay hidden" id="cropOverlay">
+  <div class="modal" style="max-width:340px;">
+    <h2 style="font-size:1.3em;margin-top:0;">裁切大頭照</h2>
+    <p class="crop-hint">拖曳圖片調整位置，移動滑桿縮放，確保人臉在框內</p>
+    <div class="crop-stage" id="cropStage">
+      <img id="cropImg" src="" draggable="false" alt="待裁切圖片">
+    </div>
+    <input type="range" id="cropZoom" min="100" max="300" value="100" style="width:200px;">
+    <div style="margin-top:14px;">
+      <button class="btn small" id="cropConfirmBtn">確認裁切</button>
+      <button class="btn small secondary" id="cropCancelBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 收款資訊獨立頁 -->
+<div class="screen" id="paymentScreen">
+  <button class="back-btn" id="paymentBackBtn">← 返回欠款明細</button>
+  <div class="pay-section">
+    <h2>收款資訊</h2>
+    <div class="qr-group">
+      <div class="qr-item">
+        <button class="btn small" data-pay="Alipay">點擊進入 Alipay</button>
+        <p>Alipay</p>
+      </div>
+      <div class="qr-item">
+        <button class="btn small" data-pay="FPS">點擊進入 轉數快</button>
+        <p>轉數快 (FPS)</p>
+      </div>
+    </div>
+    <div class="contact-info">
+      <div>電話號碼：<b>5116 7911</b></div>
+      <div>銀行帳號：<b>Hang Seng Bank 204 417 224 882</b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MASTER_PASSWORD = "1029384756";
+  const THEME_COLORS = ["#e2415a","#ee7148","#f8a557","#fcd980","#e2f59a","#aee29b","#5fc4a0","#3a86c8"];
+  const EVIDENCE_PLACEHOLDER = "QRcode/Alipay.jpg";
+
+  // ====== 欠款資料（假資料，之後請自行修改成真實內容） ======
+  const debtData = {
+    "媽": [
+      { id:"mom1", date: "2026-01-15", category: "代墊消費", item: "幫忙買的化妝品", amount: 350, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
+      { id:"mom2", date: "2026-03-02", category: "承諾未付", item: "說好的飯錢沒給", amount: 120, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
+      { id:"mom3", date: "2026-05-20", category: "借款", item: "急用借的現金", amount: 1000, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+    ],
+    "爸": [
+      { id:"dad1", date: "2026-02-10", category: "代墊消費", item: "幫忙繳的水電費", amount: 800, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
+      { id:"dad2", date: "2026-04-05", category: "借款", item: "修車借的錢", amount: 1500, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+    ],
+    "妹": [
+      { id:"sis1", date: "2026-01-28", category: "承諾未付", item: "說好的生日禮物錢", amount: 250, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
+      { id:"sis2", date: "2026-03-18", category: "代墊消費", item: "幫忙買的網購商品", amount: 480, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" },
+      { id:"sis3", date: "2026-06-01", category: "借款", item: "繳學費借的錢", amount: 2000, evidence: EVIDENCE_PLACEHOLDER, status: "unpaid" }
+    ]
+  };
+
+  // ====== localStorage 持久化（PIN / 主題色 / 還款狀態 / 音量） ======
+  const STORE_KEY = "oweMyMoney_state_v1";
+  function loadStore() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch(e) { return {}; }
+  }
+  function saveStore(store) { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+  let store = loadStore();
+  store.pins = store.pins || {};        // { 媽: "1234", ... }
+  store.themes = store.themes || {};    // { 媽: "#xxxxxx", ... }
+  store.payStatus = store.payStatus || {}; // { mom1: "pending"/"paid"/"unpaid" }
+  store.volumes = store.volumes || { bgm: 50, sfx: 80 };
+  store.profilePics = store.profilePics || {};   // { 媽: "data:image/jpeg;base64,...", ... }
+  store.profileBgs = store.profileBgs || {};      // { 媽: "data:image/jpeg;base64,...", ... }
+  saveStore(store);
+
+  // ====== 元素 ======
+  const popupSound = document.getElementById('popupSound');
+  const bgm = document.getElementById('bgm');
+  const overlay = document.getElementById('overlay');
+  const watchDetailBtn = document.getElementById('watchDetailBtn');
+  const selectScreen = document.getElementById('selectScreen');
+  const detailScreen = document.getElementById('detailScreen');
+  const backBtn = document.getElementById('backBtn');
+  const debtList = document.getElementById('debtList');
+  const detailTitle = document.getElementById('detailTitle');
+  const totalAmount = document.getElementById('totalAmount');
+  const totalBox = document.getElementById('totalBox');
+  const payAllBtn = document.getElementById('payAllBtn');
+
+  const identityOverlay = document.getElementById('identityOverlay');
+  const identitySub = document.getElementById('identitySub');
+  const identityYesBtn = document.getElementById('identityYesBtn');
+  const identityNoBtn = document.getElementById('identityNoBtn');
+
+  const setPinOverlay = document.getElementById('setPinOverlay');
+  const setPinInput = document.getElementById('setPinInput');
+  const setPinError = document.getElementById('setPinError');
+  const setPinConfirmBtn = document.getElementById('setPinConfirmBtn');
+
+  const checkPinOverlay = document.getElementById('checkPinOverlay');
+  const checkPinInput = document.getElementById('checkPinInput');
+  const checkPinError = document.getElementById('checkPinError');
+  const checkPinConfirmBtn = document.getElementById('checkPinConfirmBtn');
+  const checkPinCancelBtn = document.getElementById('checkPinCancelBtn');
+
+  const waitOverlay = document.getElementById('waitOverlay');
+  const waitOkBtn = document.getElementById('waitOkBtn');
+
+  const masterOverlay = document.getElementById('masterOverlay');
+  const masterInput = document.getElementById('masterInput');
+  const masterError = document.getElementById('masterError');
+  const masterConfirmBtn = document.getElementById('masterConfirmBtn');
+  const masterCancelBtn = document.getElementById('masterCancelBtn');
+
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxClose = document.getElementById('lightboxClose');
+
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+  const settingsPersonLabel = document.getElementById('settingsPersonLabel');
+  const colorRow = document.getElementById('colorRow');
+  const bgmVolume = document.getElementById('bgmVolume');
+  const sfxVolume = document.getElementById('sfxVolume');
+
+  let currentPerson = null;
+  let pendingPersonForIdentity = null;
+  let pendingMasterAction = null; // { type: 'verifyDebt'|'verifyAll', id }
+
+  // ====== 音量套用 ======
+  function applyVolumes() {
+    bgm.volume = store.volumes.bgm / 100;
+    popupSound.volume = store.volumes.sfx / 100;
+  }
+  bgmVolume.value = store.volumes.bgm;
+  sfxVolume.value = store.volumes.sfx;
+  applyVolumes();
+  bgmVolume.addEventListener('input', () => { store.volumes.bgm = +bgmVolume.value; saveStore(store); applyVolumes(); });
+  sfxVolume.addEventListener('input', () => { store.volumes.sfx = +sfxVolume.value; saveStore(store); applyVolumes(); });
+
+  // ====== 啟動：播放音效 + BGM（需使用者互動才可保證播放） ======
+  function tryPlayAudio() {
+    popupSound.play().catch(() => {});
+    bgm.play().catch(() => {});
+  }
+  window.addEventListener('load', () => {
+    tryPlayAudio();
+    document.body.addEventListener('click', tryPlayAudio, { once: true });
+  });
+
+  watchDetailBtn.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    selectScreen.classList.add('active');
+    document.body.classList.add('show-select-bg');
+  });
+
+  // ====== 選擇身分 → 先問是否本人 ======
+  document.querySelectorAll('.person-card').forEach(card => {
+    card.addEventListener('click', () => {
+      pendingPersonForIdentity = card.dataset.person;
+      identitySub.textContent = `你係咪「${pendingPersonForIdentity}」本人？`;
+      identityOverlay.classList.remove('hidden');
+    });
+  });
+
+  identityNoBtn.addEventListener('click', () => identityOverlay.classList.add('hidden'));
+
+  identityYesBtn.addEventListener('click', () => {
+    identityOverlay.classList.add('hidden');
+    const person = pendingPersonForIdentity;
+    if (store.testMode) {
+      enterDetail(person);
+    } else if (store.pins[person]) {
+      openCheckPin(person);
+    } else {
+      openSetPin(person);
+    }
+  });
+
+  // ====== 設定 PIN ======
+  function openSetPin(person) {
+    setPinInput.value = "";
+    setPinError.textContent = "";
+    setPinOverlay.classList.remove('hidden');
+    setPinOverlay.dataset.person = person;
+  }
+  setPinConfirmBtn.addEventListener('click', () => {
+    const val = setPinInput.value.trim();
+    if (!/^\d{4}$/.test(val)) {
+      setPinError.textContent = "請輸入 4 位數字";
+      return;
+    }
+    const person = setPinOverlay.dataset.person;
+    store.pins[person] = val;
+    saveStore(store);
+    setPinOverlay.classList.add('hidden');
+    enterDetail(person);
+  });
+
+  // ====== 輸入 PIN 驗證 ======
+  function openCheckPin(person) {
+    checkPinInput.value = "";
+    checkPinError.textContent = "";
+    checkPinOverlay.classList.remove('hidden');
+    checkPinOverlay.dataset.person = person;
+  }
+  checkPinCancelBtn.addEventListener('click', () => checkPinOverlay.classList.add('hidden'));
+  checkPinConfirmBtn.addEventListener('click', () => {
+    const val = checkPinInput.value.trim();
+    const person = checkPinOverlay.dataset.person;
+    if (val === store.pins[person] || val === MASTER_PASSWORD) {
+      checkPinOverlay.classList.add('hidden');
+      enterDetail(person);
+    } else {
+      checkPinError.textContent = "PIN 碼錯誤，請再試一次";
+    }
+  });
+
+  // ====== 進入明細頁 ======
+  backBtn.addEventListener('click', () => {
+    detailScreen.classList.remove('active');
+    selectScreen.classList.add('active');
+    document.body.classList.add('show-select-bg');
+  });
+
+  const paymentScreen = document.getElementById('paymentScreen');
+  const goPaymentBtn = document.getElementById('goPaymentBtn');
+  const paymentBackBtn = document.getElementById('paymentBackBtn');
+  goPaymentBtn.addEventListener('click', () => {
+    detailScreen.classList.remove('active');
+    paymentScreen.classList.add('active');
+  });
+  paymentBackBtn.addEventListener('click', () => {
+    paymentScreen.classList.remove('active');
+    detailScreen.classList.add('active');
+  });
+
+  function applyTheme(person) {
+    const color = store.themes[person] || THEME_COLORS[0];
+    totalBox.style.background = color;
+  }
+
+  function applyProfileBg(person) {
+    const bg = store.profileBgs[person];
+    if (bg) {
+      detailScreen.style.background = `linear-gradient(rgba(255,255,255,0.55),rgba(255,255,255,0.55)), url('${bg}') center/cover no-repeat`;
+      detailScreen.style.borderRadius = '24px';
+    } else {
+      detailScreen.style.background = '';
+      detailScreen.style.borderRadius = '';
+    }
+  }
+
+  function applyProfilePics() {
+    document.querySelectorAll('.person-card').forEach(card => {
+      const person = card.dataset.person;
+      const pic = store.profilePics[person];
+      if (pic) card.style.backgroundImage = `url('${pic}')`;
+    });
+  }
+  applyProfilePics();
+
+  function enterDetail(person) {
+    currentPerson = person;
+    selectScreen.classList.remove('active');
+    document.body.classList.remove('show-select-bg');
+    detailScreen.classList.add('active');
+    detailTitle.textContent = `${person} 的欠款明細`;
+    applyTheme(person);
+    applyProfileBg(person);
+    renderDebtList();
+  }
+
+  // ====== 更換大頭照（含裁切） ======
+  const iconFileInput = document.getElementById('iconFileInput');
+  const bgFileInput = document.getElementById('bgFileInput');
+  const changeIconBtn = document.getElementById('changeIconBtn');
+  const changeBgBtn = document.getElementById('changeBgBtn');
+  const cropOverlay = document.getElementById('cropOverlay');
+  const cropStage = document.getElementById('cropStage');
+  const cropImg = document.getElementById('cropImg');
+  const cropZoom = document.getElementById('cropZoom');
+  const cropConfirmBtn = document.getElementById('cropConfirmBtn');
+  const cropCancelBtn = document.getElementById('cropCancelBtn');
+
+  const removeBgBtn = document.getElementById('removeBgBtn');
+  changeIconBtn.addEventListener('click', () => iconFileInput.click());
+  changeBgBtn.addEventListener('click', () => bgFileInput.click());
+  removeBgBtn.addEventListener('click', () => {
+    if (!currentPerson) return;
+    delete store.profileBgs[currentPerson];
+    saveStore(store);
+    applyProfileBg(currentPerson);
+  });
+
+  let cropImgNatural = { w: 0, h: 0 };
+  let cropPos = { x: 0, y: 0 };
+  let cropScale = 1;
+  let cropBaseScale = 1;
+  let cropTargetPerson = null;
+
+  iconFileInput.addEventListener('change', () => {
+    const file = iconFileInput.files[0];
+    if (!file) return;
+    cropTargetPerson = currentPerson;
+    const reader = new FileReader();
+    reader.onload = e => {
+      cropImg.onload = () => {
+        cropImgNatural.w = cropImg.naturalWidth;
+        cropImgNatural.h = cropImg.naturalHeight;
+        const stageW = cropStage.clientWidth, stageH = cropStage.clientHeight;
+        cropBaseScale = Math.max(stageW / cropImgNatural.w, stageH / cropImgNatural.h);
+        cropScale = 1;
+        cropZoom.value = 100;
+        cropPos.x = (stageW - cropImgNatural.w * cropBaseScale) / 2;
+        cropPos.y = (stageH - cropImgNatural.h * cropBaseScale) / 2;
+        applyCropTransform();
+      };
+      cropImg.src = e.target.result;
+      cropOverlay.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+    iconFileInput.value = "";
+  });
+
+  function applyCropTransform() {
+    const totalScale = cropBaseScale * cropScale;
+    cropImg.style.width = (cropImgNatural.w * totalScale) + 'px';
+    cropImg.style.height = (cropImgNatural.h * totalScale) + 'px';
+    cropImg.style.left = cropPos.x + 'px';
+    cropImg.style.top = cropPos.y + 'px';
+  }
+
+  function clampCropPos() {
+    const stageW = cropStage.clientWidth, stageH = cropStage.clientHeight;
+    const totalScale = cropBaseScale * cropScale;
+    const imgW = cropImgNatural.w * totalScale, imgH = cropImgNatural.h * totalScale;
+    const minX = stageW - imgW, minY = stageH - imgH;
+    cropPos.x = Math.min(0, Math.max(minX, cropPos.x));
+    cropPos.y = Math.min(0, Math.max(minY, cropPos.y));
+  }
+
+  let cropDragging = false, cropDragStart = { x: 0, y: 0 }, cropPosStart = { x: 0, y: 0 };
+  cropStage.addEventListener('pointerdown', e => {
+    cropDragging = true;
+    cropDragStart = { x: e.clientX, y: e.clientY };
+    cropPosStart = { x: cropPos.x, y: cropPos.y };
+    cropStage.setPointerCapture(e.pointerId);
+  });
+  cropStage.addEventListener('pointermove', e => {
+    if (!cropDragging) return;
+    cropPos.x = cropPosStart.x + (e.clientX - cropDragStart.x);
+    cropPos.y = cropPosStart.y + (e.clientY - cropDragStart.y);
+    clampCropPos();
+    applyCropTransform();
+  });
+  cropStage.addEventListener('pointerup', () => cropDragging = false);
+  cropStage.addEventListener('pointercancel', () => cropDragging = false);
+
+  cropZoom.addEventListener('input', () => {
+    cropScale = cropZoom.value / 100;
+    clampCropPos();
+    applyCropTransform();
+  });
+
+  cropCancelBtn.addEventListener('click', () => cropOverlay.classList.add('hidden'));
+  cropConfirmBtn.addEventListener('click', () => {
+    const stageW = cropStage.clientWidth, stageH = cropStage.clientHeight;
+    const outW = 340, outH = 420;
+    const ratio = outW / stageW;
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    const totalScale = cropBaseScale * cropScale;
+    ctx.drawImage(
+      cropImg,
+      cropPos.x * ratio, cropPos.y * ratio,
+      cropImgNatural.w * totalScale * ratio, cropImgNatural.h * totalScale * ratio
+    );
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    store.profilePics[cropTargetPerson] = dataUrl;
+    saveStore(store);
+    applyProfilePics();
+    cropOverlay.classList.add('hidden');
+  });
+
+  // ====== 更換頁面背景圖（不裁切，但會壓縮避免超過儲存上限） ======
+  bgFileInput.addEventListener('change', () => {
+    const file = bgFileInput.files[0];
+    if (!file || !currentPerson) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1280;
+        const scale = Math.min(1, maxW / img.naturalWidth);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth * scale;
+        canvas.height = img.naturalHeight * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        try {
+          store.profileBgs[currentPerson] = dataUrl;
+          saveStore(store);
+          applyProfileBg(currentPerson);
+        } catch (err) {
+          alert('圖片太大，無法儲存，請換一張較小的圖片');
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    bgFileInput.value = "";
+  });
+
+  function getStatus(debt) {
+    return store.payStatus[debt.id] || debt.status || "unpaid";
+  }
+
+  function renderDebtList() {
+    const debts = debtData[currentPerson] || [];
+    let total = 0;
+    debtList.innerHTML = debts.map(d => {
+      const status = getStatus(d);
+      if (status !== "paid") total += d.amount;
+      const cardClass = status === "pending" ? "pending" : (status === "paid" ? "paid" : "");
+      let actionHtml = "";
+      if (status === "unpaid") {
+        actionHtml = `<button class="btn small pay-btn" data-pay-id="${d.id}">我已付款</button>`;
+      } else if (status === "pending") {
+        actionHtml = `<button class="btn small secondary verify-btn" data-verify-id="${d.id}">（製作者）確認收款</button>`;
+      }
+      return `
+        <div class="debt-card ${cardClass}">
+          <div class="debt-info">
+            <button class="btn small evidence-btn" data-full="${d.evidence}">📄 查看付款證明</button>
+            <div class="row1">
+              <span>${d.item}</span>
+              <span class="amount">$${d.amount.toLocaleString()}</span>
+            </div>
+            <div class="category-tag">${d.category}</div>
+            <div class="date">${d.date}</div>
+            ${actionHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    totalAmount.textContent = `$${total.toLocaleString()}`;
+
+    debtList.querySelectorAll('.pay-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        store.payStatus[btn.dataset.payId] = "pending";
+        saveStore(store);
+        renderDebtList();
+        waitOverlay.classList.remove('hidden');
+      });
+    });
+    debtList.querySelectorAll('.verify-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingMasterAction = { type: 'verifyDebt', id: btn.dataset.verifyId };
+        openMasterOverlay();
+      });
+    });
+    debtList.querySelectorAll('.evidence-btn').forEach(btn => {
+      btn.addEventListener('click', () => openLightbox(btn.dataset.full));
+    });
+  }
+
+  payAllBtn.addEventListener('click', () => {
+    const debts = debtData[currentPerson] || [];
+    debts.forEach(d => {
+      if (getStatus(d) === "unpaid") store.payStatus[d.id] = "pending";
+    });
+    saveStore(store);
+    renderDebtList();
+    waitOverlay.classList.remove('hidden');
+  });
+
+  waitOkBtn.addEventListener('click', () => waitOverlay.classList.add('hidden'));
+
+  // ====== 製作者驗證（萬能密碼） ======
+  function openMasterOverlay() {
+    masterInput.value = "";
+    masterError.textContent = "";
+    masterOverlay.classList.remove('hidden');
+  }
+  masterCancelBtn.addEventListener('click', () => { masterOverlay.classList.add('hidden'); pendingMasterAction = null; });
+  masterConfirmBtn.addEventListener('click', () => {
+    if (masterInput.value !== MASTER_PASSWORD) {
+      masterError.textContent = "密碼錯誤";
+      return;
+    }
+    if (pendingMasterAction) {
+      if (pendingMasterAction.type === 'verifyDebt') {
+        store.payStatus[pendingMasterAction.id] = "paid";
+      } else if (pendingMasterAction.type === 'verifyAllPending') {
+        Object.keys(store.payStatus).forEach(id => {
+          if (store.payStatus[id] === "pending") store.payStatus[id] = "paid";
+        });
+      } else if (pendingMasterAction.type === 'toggleTestMode') {
+        store.testMode = !store.testMode;
+        updateTestModeBtnLabel();
+      } else if (pendingMasterAction.type === 'resetPins') {
+        store.pins = {};
+      } else if (pendingMasterAction.type === 'resetPay') {
+        store.payStatus = {};
+      }
+      saveStore(store);
+      if (currentPerson) renderDebtList();
+    }
+    masterOverlay.classList.add('hidden');
+    pendingMasterAction = null;
+  });
+
+  function updateTestModeBtnLabel() {
+    testModeBtn.textContent = store.testMode ? "🧪 關閉測試模式" : "🧪 開啟測試模式（免PIN）";
+  }
+  const testModeBtn = document.getElementById('testModeBtn');
+  const verifyAllBtn = document.getElementById('verifyAllBtn');
+  const resetPinBtn = document.getElementById('resetPinBtn');
+  const resetPayBtn = document.getElementById('resetPayBtn');
+  updateTestModeBtnLabel();
+
+  testModeBtn.addEventListener('click', () => { pendingMasterAction = { type: 'toggleTestMode' }; openMasterOverlay(); });
+  verifyAllBtn.addEventListener('click', () => { pendingMasterAction = { type: 'verifyAllPending' }; openMasterOverlay(); });
+  resetPinBtn.addEventListener('click', () => { pendingMasterAction = { type: 'resetPins' }; openMasterOverlay(); });
+  resetPayBtn.addEventListener('click', () => { pendingMasterAction = { type: 'resetPay' }; openMasterOverlay(); });
+
+  // ====== 燈箱 ======
+  function openLightbox(src) {
+    lightboxImg.src = src;
+    lightbox.style.display = 'flex';
+  }
+  lightboxClose.addEventListener('click', () => lightbox.style.display = 'none');
+  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) lightbox.style.display = 'none'; });
+  document.querySelectorAll('.qr-item img').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.dataset.full));
+  });
+
+  // 收款方式按鈕：點擊進入（放大對應 QR）
+  document.querySelectorAll('[data-pay]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.pay === "Alipay" ? "QRcode/Alipay.jpg" : "QRcode/轉數快.jpg";
+      openLightbox(target);
+    });
+  });
+
+  // ====== 環境設定面板 ======
+  THEME_COLORS.forEach(c => {
+    const dot = document.createElement('div');
+    dot.className = 'color-dot';
+    dot.style.background = c;
+    dot.addEventListener('click', () => {
+      if (!currentPerson) return;
+      store.themes[currentPerson] = c;
+      saveStore(store);
+      applyTheme(currentPerson);
+      refreshColorSelection();
+    });
+    colorRow.appendChild(dot);
+  });
+  function refreshColorSelection() {
+    const sel = currentPerson ? (store.themes[currentPerson] || THEME_COLORS[0]) : null;
+    colorRow.querySelectorAll('.color-dot').forEach((dot, i) => {
+      dot.classList.toggle('selected', THEME_COLORS[i] === sel);
+    });
+  }
+
+  settingsBtn.addEventListener('click', () => {
+    settingsPersonLabel.textContent = currentPerson || "未選擇";
+    refreshColorSelection();
+    settingsOverlay.classList.remove('hidden');
+  });
+  settingsCloseBtn.addEventListener('click', () => settingsOverlay.classList.add('hidden'));
+</script>
+
+</body>
+</html>
