@@ -1,0 +1,7 @@
+#!/bin/sh
+# 每次 commit 後自動 push 到目前追蹤的遠端分支
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ -n "$branch" ]; then
+  echo "🔄 自動推送 $branch 到 origin..."
+  git push origin "$branch" && echo "✅ 推送成功" || echo "⚠️ 推送失敗，請手動檢查"
+fi
