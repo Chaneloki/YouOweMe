@@ -376,6 +376,9 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <script>
   const MASTER_PASSWORD = "1029384756";
   const THEME_COLORS = ["#e2415a","#ee7148","#f8a557","#fcd980","#e2f59a","#aee29b","#5fc4a0","#3a86c8"];
@@ -414,6 +417,53 @@
   store.profilePics = store.profilePics || {};   // { 媽: "data:image/jpeg;base64,...", ... }
   store.profileBgs = store.profileBgs || {};      // { 媽: "data:image/jpeg;base64,...", ... }
   saveStore(store);
+
+  // ====== Firebase（跨裝置同步 PIN / 還款狀態 / 測試模式） ======
+  // 注意：Firestore 規則目前是「allow read, write: if true」，任何持有此設定金鑰的人都能讀寫，
+  // 屬於家庭玩具網頁可接受的風險，不要拿來放真正機密資料。
+  const firebaseConfig = {
+    apiKey: "AIzaSyClMqJvin8QDHy5HxcEmaYQvcQ47J8e7Ug",
+    authDomain: "owe-my-money.firebaseapp.com",
+    projectId: "owe-my-money",
+    storageBucket: "owe-my-money.firebasestorage.app",
+    messagingSenderId: "278852411102",
+    appId: "1:278852411102:web:b7fdec091b88413e536c4f",
+    measurementId: "G-FPFY80T45X"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const sharedDocRef = db.collection('oweMyMoney').doc('shared');
+
+  function pushSharedState() {
+    sharedDocRef.set({
+      pins: store.pins,
+      payStatus: store.payStatus,
+      testMode: !!store.testMode
+    }, { merge: true }).catch(err => console.error('Firestore 寫入失敗', err));
+  }
+
+  // 第一次連線時，把「本機已有但雲端還沒有」的舊資料（例如升級前就設好的 PIN）自動補上傳，
+  // 雲端資料優先（衝突時雲端蓋過本機），但不會丟掉本機獨有的資料。
+  let firstSnapshotReceived = false;
+  sharedDocRef.onSnapshot(snap => {
+    const data = snap.exists ? snap.data() : {};
+    const remotePins = data.pins || {};
+    const remotePayStatus = data.payStatus || {};
+    const mergedPins = { ...store.pins, ...remotePins };
+    const mergedPayStatus = { ...store.payStatus, ...remotePayStatus };
+    const needUpload = !firstSnapshotReceived && (
+      Object.keys(mergedPins).length !== Object.keys(remotePins).length ||
+      Object.keys(mergedPayStatus).length !== Object.keys(remotePayStatus).length
+    );
+    store.pins = mergedPins;
+    store.payStatus = mergedPayStatus;
+    store.testMode = !!data.testMode;
+    saveStore(store);
+    if (needUpload) pushSharedState();
+    firstSnapshotReceived = true;
+    if (typeof updateTestModeBtnLabel === 'function') updateTestModeBtnLabel();
+    if (currentPerson && typeof renderDebtList === 'function') renderDebtList();
+  }, err => console.error('Firestore 讀取失敗', err));
 
   // ====== 元素 ======
   const popupSound = document.getElementById('popupSound');
@@ -537,6 +587,7 @@
     const person = setPinOverlay.dataset.person;
     store.pins[person] = val;
     saveStore(store);
+    pushSharedState();
     setPinOverlay.classList.add('hidden');
     enterDetail(person);
   });
@@ -798,6 +849,7 @@
       btn.addEventListener('click', () => {
         store.payStatus[btn.dataset.payId] = "pending";
         saveStore(store);
+        pushSharedState();
         renderDebtList();
         waitOverlay.classList.remove('hidden');
       });
@@ -819,6 +871,7 @@
       if (getStatus(d) === "unpaid") store.payStatus[d.id] = "pending";
     });
     saveStore(store);
+    pushSharedState();
     renderDebtList();
     waitOverlay.classList.remove('hidden');
   });
@@ -853,6 +906,7 @@
         store.payStatus = {};
       }
       saveStore(store);
+      pushSharedState();
       if (currentPerson) renderDebtList();
     }
     masterOverlay.classList.add('hidden');

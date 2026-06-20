@@ -104,5 +104,20 @@ Own My Money!/
 
 ---
 
-請確認以上 5 點後，我就開始實作。
+## Git
+1. 打開 PowerShell 或終端機
+2. 輸入並按 Enter：
+  cd "D:\project\Own My Money!"
+3. 確認路徑正確，輸入：
+  pwd
+4. 確認沒問題後，才執行：
+  git status
+5. 現在請繼續打：
+  git add -A
+Ran
+6. 
+  git commit -m ""
+7. commit 完成後您應該會立刻看到自動推送的訊息：
+  🔄 自動推送 main 到 origin...
+  ✅ 推送成功
 
